@@ -7,6 +7,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 
@@ -17,11 +18,15 @@ namespace _02Laboratory.ViewModels
         private Person _user = new Person();
         private RelayCommand<object> _proceedCommand;
         private DateTime? _chosenDate;
-        public RelayCommand<object> ProceedCommand
+        private bool _isEnabled = true;
+
+        public bool IsEnabled
         {
-            get
+            get => _isEnabled;
+            set
             {
-                return _proceedCommand ??= new RelayCommand<object>(_ => Proceed(), CanExecute);
+                _isEnabled = value;
+                OnPropertyChanged();
             }
         }
 
@@ -43,58 +48,16 @@ namespace _02Laboratory.ViewModels
             set { _user.Email = value; }
         }
 
-        private bool CanExecute(object obj)
-        {
-            return _chosenDate!=null && !String.IsNullOrWhiteSpace(FirstName) && !String.IsNullOrWhiteSpace(LastName) && !String.IsNullOrWhiteSpace(Email);
-        }
-
-        private async void Proceed()
-        {
-            if (!WorkWithDate.checkDate(_chosenDate.Value))
-            {
-                MessageBox.Show("Wrong date! The year must be between 1900 and 2023.");
-                return;
-            }
-            _user.DateOfBirth = _chosenDate.Value;
-
-            await Task.Run(() => doAsyncOperation());
-
-            if (_chosenDate.Value.Day == DateTime.Today.Day && _chosenDate.Value.Month == DateTime.Today.Month)
-                MessageBox.Show("Happy birthday!!!");
-        }
-
-     
-
-        private void doAsyncOperation()
-        {
-            _user.Proceed();
-            showInfo();
-            WestZodiacSign = _user.SunSign.ToString();
-            ChineseZodiacSign = _user.ChineseSign.ToString();
-            IsAdult = _user.IsAdult.ToString();
-            IsBirthday = _user.IsBirthday.ToString();
-        
-        }
-
         public string DateOfBirth
         {
             get { return (_user.SunSign == WestZodiacSigns.None) ? "" : _user.DateOfBirth.ToShortDateString(); }
-            set
-            {
-                OnPropertyChanged();
-            }
+            set{ OnPropertyChanged(); }
         }
 
         public string WestZodiacSign
         {
-            get
-            {
-                return (_user.SunSign == WestZodiacSigns.None) ? "" : _user.SunSign.ToString();
-            }
-            set
-            {
-                OnPropertyChanged();
-            }
+            get { return (_user.SunSign == WestZodiacSigns.None) ? "" : _user.SunSign.ToString(); }
+            set { OnPropertyChanged(); }
         }
 
         public string IsAdult
@@ -111,10 +74,53 @@ namespace _02Laboratory.ViewModels
         public string ChineseZodiacSign
         {
             get { return (_user.ChineseSign == ChineseZodiacSigns.None) ? "" : _user.ChineseSign.ToString(); }
-            set
+            set { OnPropertyChanged(); }
+        }
+
+        public RelayCommand<object> ProceedCommand
+        {
+            get
             {
-                OnPropertyChanged();
+                return _proceedCommand ??= new RelayCommand<object>(_ => Proceed(), CanExecute);
             }
+        }
+
+        private bool CanExecute(object obj)
+        {
+            return _chosenDate!=DateTime.Now && !String.IsNullOrWhiteSpace(FirstName) && !String.IsNullOrWhiteSpace(LastName) && !String.IsNullOrWhiteSpace(Email);
+        }
+
+        private async void Proceed()
+        {
+            if (!WorkWithDate.checkDate(_chosenDate.Value))
+            {
+                MessageBox.Show("Wrong date! The year must be between 1900 and 2023.");
+                return;
+            }
+            _user.DateOfBirth = _chosenDate.Value;
+            IsEnabled = false;
+            await Task.Run(() => doAsyncOperation());
+
+            if (_chosenDate.Value.Day == DateTime.Today.Day && _chosenDate.Value.Month == DateTime.Today.Month)
+                MessageBox.Show("Happy birthday!!!");
+        }
+
+        private void doAsyncOperation()
+        {
+            Thread.Sleep(3000);
+            _user.Proceed();
+            showInfo();
+            WestZodiacSign = _user.SunSign.ToString();
+            ChineseZodiacSign = _user.ChineseSign.ToString();
+            IsAdult = _user.IsAdult.ToString();
+            IsBirthday = _user.IsBirthday.ToString();
+            IsEnabled = true;
+        }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
 
         public DateTime? ChosenDate
@@ -130,11 +136,6 @@ namespace _02Laboratory.ViewModels
             }
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
-        protected virtual void OnPropertyChanged([CallerMemberName] string propertyName = null)
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
         private void showInfo()
         {
             OnPropertyChanged("FirstName");
